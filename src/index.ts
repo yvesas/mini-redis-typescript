@@ -1,19 +1,9 @@
-import { DataStore } from "./core/DataStore";
-import { ExpirationManager } from "./core/Expiration";
+import { RedisServer } from "./networking/server";
 
-console.log("Hello, Redis");
+const PORT = parseInt(process.env.PORT || "6379");
+const server = new RedisServer(PORT);
 
-const store = new DataStore();
-const expiration = new ExpirationManager(store);
-
-async function testExpiration() {
-  console.log("SET registro 'temp' que expira em 2 segundos");
-  await store.set("temp", "data", 2);
-  expiration.setExpiration("temp", 2);
-
-  setTimeout(async () => {
-    console.log("Deve ser null após 2 segundos: ", await store.get("temp"));
-  }, 2500);
-}
-
-testExpiration();
+process.on("SIGINT", () => {
+  server.close();
+  process.exit();
+});
