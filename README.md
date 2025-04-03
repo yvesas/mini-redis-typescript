@@ -1,1 +1,1 @@
-# mini-redis-typescript
+# Mini-Redis using Typescript
