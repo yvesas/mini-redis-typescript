@@ -19,19 +19,15 @@ export class ResponseHandler {
     return ResponseHandler.instance;
   }
 
-  public sendResponse(
-    socket: Socket,
-    data: string | number | any[] | Error | null
-  ): void {
+  public sendResponse(socket: Socket, data: any): void {
     try {
       let response: string;
 
       if (typeof data === "string") {
-        if (data === "OK" || data === "PONG" || data.startsWith("+")) {
-          response = this.formatter.formatSimpleString(data.replace(/^\+/, ""));
-        } else {
-          response = this.formatter.formatBulkString(data);
-        }
+        response =
+          data.startsWith("+") || ["OK", "PONG"].includes(data)
+            ? this.formatter.formatSimpleString(data.replace(/^\+/, ""))
+            : this.formatter.formatBulkString(data);
       } else if (typeof data === "number") {
         response = this.formatter.formatInteger(data);
       } else if (Array.isArray(data)) {
@@ -39,16 +35,30 @@ export class ResponseHandler {
       } else if (data === null) {
         response = this.formatter.formatBulkString(null);
       } else if (data instanceof Error) {
+        const errorType = this.determineErrorType(data.message);
         response = this.formatter.formatError(
-          data.message.replace(/^ERR /, "")
+          errorType.type,
+          errorType.message
         );
       } else {
-        response = this.formatter.formatError("Unsupported data type");
+        response = this.formatter.formatError("ERR", "Unsupported data type");
       }
 
       socket.write(response);
     } catch (err) {
-      socket.write(this.formatter.formatError("Internal server error"));
+      socket.write(this.formatter.formatError("ERR", "Internal server error"));
     }
+  }
+
+  private determineErrorType(message: string): {
+    type: string;
+    message: string;
+  } {
+    const [type, ...parts] = message.split(" ");
+    const redisTypes = ["ERR", "WRONGTYPE", "SYNTAX", "IOERR", "BUSY"];
+
+    return redisTypes.includes(type)
+      ? { type, message: parts.join(" ") }
+      : { type: "ERR", message };
   }
 }

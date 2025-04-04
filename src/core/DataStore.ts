@@ -1,23 +1,45 @@
 import { Mutex } from "async-mutex";
+import { WrongTypeError } from "../errors/RedisError";
 
 interface StoredValue {
-  value: any;
+  value: string;
   expiresAt?: number;
 }
 
 export class DataStore {
   private data: Map<string, StoredValue> = new Map();
-  private lists: Map<string, any[]> = new Map();
+  private lists: Map<string, string[]> = new Map();
   private mutex = new Mutex();
 
-  async set(key: string, value: any, ttl?: number): Promise<void> {
-    await this.mutex.runExclusive(() => {
-      const expiresAt = ttl ? Date.now() + ttl * 1000 : undefined;
-      this.data.set(key, { value, expiresAt });
+  constructor() {
+    setInterval(() => this.cleanupExpiredKeys(), 300000);
+  }
+
+  private cleanupExpiredKeys(): void {
+    const now = Date.now();
+    this.data.forEach((value, key) => {
+      if (value.expiresAt && value.expiresAt <= now) {
+        this.data.delete(key);
+      }
     });
   }
 
-  async get(key: string): Promise<any> {
+  async set(key: string, value: any, ttl?: number): Promise<void> {
+    if (!key || typeof value === "undefined") {
+      throw new Error("ERR invalid key or value");
+    }
+
+    return this.mutex.runExclusive(() => {
+      if (this.lists.has(key)) {
+        throw new WrongTypeError();
+      }
+
+      const expiresAt = ttl ? Date.now() + ttl * 1000 : undefined;
+      this.data.set(key, { value: String(value), expiresAt });
+    });
+  }
+
+  async get(key: string): Promise<string | null> {
     return this.mutex.runExclusive(() => {
       const item = this.data.get(key);
       if (!item) return null;
@@ -27,7 +49,7 @@ export class DataStore {
         return null;
       }
 
-      return String(item.value);
+      return item.value;
     });
   }
 
@@ -44,8 +66,9 @@ export class DataStore {
 
   async delete(key: string): Promise<boolean> {
     return this.mutex.runExclusive(() => {
-      const existed = this.data.has(key);
+      const existed = this.data.has(key) || this.lists.has(key);
       this.data.delete(key);
+      this.lists.delete(key);
       return existed;
     });
   }
@@ -54,8 +77,9 @@ export class DataStore {
     return this.mutex.runExclusive(() => {
       let count = 0;
       for (const key of keys) {
-        if (this.data.has(key)) {
+        if (this.data.has(key) || this.lists.has(key)) {
           this.data.delete(key);
+          this.lists.delete(key);
           count++;
         }
       }
@@ -66,47 +90,54 @@ export class DataStore {
   async lpush(key: string, value: any): Promise<number> {
     return this.mutex.runExclusive(() => {
       if (this.data.has(key)) {
-        throw new Error(
-          "WRONGTYPE Operation against a key holding the wrong kind of value"
-        );
+        throw new WrongTypeError();
       }
 
       if (!this.lists.has(key)) {
         this.lists.set(key, []);
       }
-      this.lists.get(key)!.unshift(value);
+      this.lists.get(key)!.unshift(String(value));
       return this.lists.get(key)!.length;
     });
   }
 
   async rpush(key: string, value: any): Promise<number> {
     return this.mutex.runExclusive(() => {
+      if (this.data.has(key)) {
+        throw new WrongTypeError();
+      }
+
       if (!this.lists.has(key)) {
         this.lists.set(key, []);
       }
-      this.lists.get(key)!.push(value);
+      this.lists.get(key)!.push(String(value));
       return this.lists.get(key)!.length;
     });
   }
 
-  async lpop(key: string): Promise<any> {
+  async lpop(key: string): Promise<string | null> {
     return this.mutex.runExclusive(() => {
       const list = this.lists.get(key);
-      return list ? list.shift() : null;
+      return list?.shift() ?? null;
     });
   }
 
-  async rpop(key: string): Promise<any> {
+  async rpop(key: string): Promise<string | null> {
     return this.mutex.runExclusive(() => {
       const list = this.lists.get(key);
-      return list ? list.pop() : null;
+      return list?.pop() ?? null;
     });
   }
 
-  async lrange(key: string, start: number, end: number): Promise<any[] | null> {
+  async lrange(
+    key: string,
+    start: number,
+    end: number
+  ): Promise<string[] | null> {
     return this.mutex.runExclusive(() => {
       const list = this.lists.get(key);
       if (!list) return null;
+
       const len = list.length;
       const s = start < 0 ? Math.max(0, len + start) : Math.min(len, start);
       const e = end < 0 ? Math.max(0, len + end) : Math.min(len, end);

@@ -1,3 +1,4 @@
+import { WrongTypeError } from "../errors/RedisError";
 import { BaseCommandService } from "./CommandService";
 import { Socket } from "net";
 
@@ -30,19 +31,52 @@ export class StringCommandService extends BaseCommandService {
   }
 
   private async handleSet(args: string[], socket: Socket): Promise<void> {
-    if (!this.validateArgs(args, socket, 2, 4)) return;
+    if (!this.validateArgs(args, socket, 2, 4)) {
+      this.responseHandler.sendResponse(
+        socket,
+        new Error("ERR wrong number of arguments for 'set' command")
+      );
+      return;
+    }
 
     const [key, value, opt, ttl] = args;
     let ttlMs: number | undefined;
 
     if (opt && ttl) {
       const optLower = opt.toLowerCase();
-      if (optLower === "ex") ttlMs = parseInt(ttl) * 1000;
-      else if (optLower === "px") ttlMs = parseInt(ttl);
+      if (!["ex", "px"].includes(optLower)) {
+        this.responseHandler.sendResponse(
+          socket,
+          new Error("ERR syntax error in SET option")
+        );
+        return;
+      }
+
+      const ttlNum = parseInt(ttl);
+      if (isNaN(ttlNum) || ttlNum <= 0) {
+        this.responseHandler.sendResponse(
+          socket,
+          new Error("ERR invalid expire time in SET")
+        );
+        return;
+      }
+
+      ttlMs = optLower === "ex" ? ttlNum * 1000 : ttlNum;
     }
 
-    await this.store.set(key, value, ttlMs);
-    this.responseHandler.sendResponse(socket, "OK");
+    try {
+      await this.store.set(key, value, ttlMs);
+      this.responseHandler.sendResponse(socket, "OK");
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("wrong kind")) {
+        this.responseHandler.sendResponse(socket, new WrongTypeError());
+      } else {
+        this.responseHandler.sendResponse(
+          socket,
+          new Error(`ERR ${err instanceof Error ? err.message : String(err)}`)
+        );
+      }
+    }
   }
 
   private async handleGet(args: string[], socket: Socket): Promise<void> {

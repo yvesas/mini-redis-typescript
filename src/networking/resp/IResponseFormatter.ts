@@ -1,9 +1,9 @@
 export interface IResponseFormatter {
   formatSimpleString(message: string): string;
-  formatError(message: string): string;
+  formatError(type: string, message: string): string;
   formatInteger(value: number): string;
   formatBulkString(value: string | null): string;
-  formatArray(values: any[] | null): string;
+  formatArray(values: Array<string | null> | null): string;
 }
 
 export class RESPResponseFormatter implements IResponseFormatter {
@@ -11,8 +11,8 @@ export class RESPResponseFormatter implements IResponseFormatter {
     return `+${message}\r\n`;
   }
 
-  formatError(message: string): string {
-    return `-${message}\r\n`;
+  formatError(type: string, message: string): string {
+    return `-${type} ${message}\r\n`;
   }
 
   formatInteger(value: number): string {
@@ -20,17 +20,21 @@ export class RESPResponseFormatter implements IResponseFormatter {
   }
 
   formatBulkString(value: string | null): string {
-    return value === null
-      ? "$-1\r\n"
-      : `$${Buffer.byteLength(value, "utf8")}\r\n${value}\r\n`;
+    if (value === null) return "$-1\r\n";
+    if (value === "") return "$0\r\n\r\n";
+    return `$${Buffer.byteLength(value, "utf8")}\r\n${value}\r\n`;
   }
 
-  formatArray(values: any[] | null): string {
+  formatArray(values: Array<string | null> | null): string {
     if (values === null) return "*-1\r\n";
 
     let response = `*${values.length}\r\n`;
     for (const val of values) {
-      response += this.formatBulkString(String(val));
+      if (val === null) {
+        response += "$-1\r\n";
+      } else {
+        response += this.formatBulkString(val);
+      }
     }
     return response;
   }
