@@ -1,4 +1,4 @@
-import { KeyCommandService } from "./Keycommands";
+import { KeyCommandService } from "./KeyCommands";
 import { ListCommandService } from "./ListCommands";
 import { StringCommandService } from "./StringCommands";
 import { DataStore } from "../core/DataStore";

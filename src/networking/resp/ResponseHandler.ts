@@ -2,6 +2,7 @@ import {
   IResponseFormatter,
   RESPResponseFormatter,
 } from "./IResponseFormatter";
+import { Socket } from "net";
 
 export class ResponseHandler {
   private static instance: ResponseHandler;
@@ -19,16 +20,18 @@ export class ResponseHandler {
   }
 
   public sendResponse(
-    socket: import("net").Socket,
+    socket: Socket,
     data: string | number | any[] | Error | null
   ): void {
     try {
       let response: string;
 
       if (typeof data === "string") {
-        response = data.startsWith("-")
-          ? this.formatter.formatError(data.substring(1))
-          : this.formatter.formatSimpleString(data);
+        if (data === "OK" || data === "PONG" || data.startsWith("+")) {
+          response = this.formatter.formatSimpleString(data.replace(/^\+/, ""));
+        } else {
+          response = this.formatter.formatBulkString(data);
+        }
       } else if (typeof data === "number") {
         response = this.formatter.formatInteger(data);
       } else if (Array.isArray(data)) {
@@ -36,14 +39,16 @@ export class ResponseHandler {
       } else if (data === null) {
         response = this.formatter.formatBulkString(null);
       } else if (data instanceof Error) {
-        response = this.formatter.formatError(data.message);
+        response = this.formatter.formatError(
+          data.message.replace(/^ERR /, "")
+        );
       } else {
         response = this.formatter.formatError("Unsupported data type");
       }
 
       socket.write(response);
     } catch (err) {
-      socket.write(this.formatter.formatError("Error generating response"));
+      socket.write(this.formatter.formatError("Internal server error"));
     }
   }
 }

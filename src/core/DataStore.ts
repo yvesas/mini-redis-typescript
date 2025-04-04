@@ -27,7 +27,7 @@ export class DataStore {
         return null;
       }
 
-      return item.value;
+      return String(item.value);
     });
   }
 
