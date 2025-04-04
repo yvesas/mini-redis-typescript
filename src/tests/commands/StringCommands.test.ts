@@ -11,6 +11,7 @@ describe("StringCommandService", () => {
     mockStore = {
       set: jest.fn(),
       get: jest.fn(),
+      exists: jest.fn(),
     } as any;
 
     mockSocket = {
@@ -18,6 +19,11 @@ describe("StringCommandService", () => {
     } as any;
 
     service = new StringCommandService(mockStore);
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe("SET command", () => {
@@ -44,6 +50,39 @@ describe("StringCommandService", () => {
       mockStore.get.mockResolvedValue(null);
       await service.execute(["get", "nonexistent"], mockSocket);
       expect(mockSocket.write).toHaveBeenCalledWith("$-1\r\n");
+    });
+  });
+
+  describe("Expiration Tests", () => {
+    it("should return null after PX expiration", async () => {
+      const testValue = { value: "tempvalue", expiresAt: Date.now() + 100 };
+      mockStore.get.mockImplementation(async (key) => {
+        if (testValue.expiresAt && Date.now() > testValue.expiresAt) {
+          return null;
+        }
+        return testValue.value;
+      });
+
+      await service.execute(["get", "tempkey"], mockSocket);
+      expect(mockSocket.write).toHaveBeenCalledWith("$8\r\ntempvalue\r\n");
+
+      jest.advanceTimersByTime(101);
+
+      await service.execute(["get", "tempkey"], mockSocket);
+      expect(mockSocket.write).toHaveBeenCalledWith("$-1\r\n");
+    });
+
+    it("should set value with PX (milliseconds) TTL", async () => {
+      await service.execute(["set", "foo", "bar", "PX", "5000"], mockSocket);
+      expect(mockStore.set).toHaveBeenCalledWith("foo", "bar", 5000);
+      expect(mockSocket.write).toHaveBeenCalledWith("+OK\r\n");
+    });
+
+    it("should reject invalid TTL values", async () => {
+      await service.execute(["set", "foo", "bar", "EX", "invalid"], mockSocket);
+      expect(mockSocket.write).toHaveBeenCalledWith(
+        expect.stringContaining("-ERR invalid expire time in SET")
+      );
     });
   });
 });
