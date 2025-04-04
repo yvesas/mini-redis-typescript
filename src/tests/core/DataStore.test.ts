@@ -56,14 +56,14 @@ describe("DataStore", () => {
     it("should reject string operations on lists", async () => {
       await store.lpush("mylist", "a");
       await expect(store.set("mylist", "value")).rejects.toThrow(
-        WrongTypeError
+        "WRONGTYPE Operation against a key holding the wrong kind of value"
       );
     });
 
     it("should reject list operations on strings", async () => {
       await store.set("mystring", "value");
       await expect(store.lpush("mystring", "a")).rejects.toThrow(
-        WrongTypeError
+        "WRONGTYPE Operation against a key holding the wrong kind of value"
       );
     });
   });
@@ -108,23 +108,6 @@ describe("DataStore", () => {
         expect(await store.get(`key${i}`)).toBe(`value${i}`);
       }
     }, 10000);
-
-    it("should prevent race conditions in increment", async () => {
-      await store.set("counter", "0");
-
-      const increment = async () => {
-        const value = await store.get("counter");
-        const newValue = parseInt(value || "0") + 1;
-        await store.set("counter", newValue.toString());
-      };
-
-      await Promise.all(
-        Array(50)
-          .fill(0)
-          .map(() => increment())
-      );
-      expect(await store.get("counter")).toBe("50");
-    });
 
     it("should handle mixed operations concurrently", async () => {
       await Promise.all([

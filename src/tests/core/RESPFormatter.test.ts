@@ -8,7 +8,9 @@ describe("RESPResponseFormatter", () => {
   });
 
   test("formatError", () => {
-    expect(formatter.formatError("Bad command")).toBe("-Bad command\r\n");
+    expect(formatter.formatError("ERR", "Bad command")).toBe(
+      "-ERR Bad command\r\n"
+    );
   });
 
   test("formatBulkString", () => {

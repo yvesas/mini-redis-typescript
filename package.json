@@ -5,7 +5,8 @@
   "scripts": {
     "build": "tsc",
     "start": "ts-node src/index.ts",
-    "test": "jest --coverage",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
     "test:watch": "jest --watch"
   },
   "keywords": [],
