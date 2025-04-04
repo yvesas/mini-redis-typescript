@@ -158,6 +158,7 @@ export class RESPProcessor {
       // Special commands
       case "ping":
       case "echo":
+      case "info":
         return "connection";
 
       default:

@@ -1,5 +1,6 @@
 import { Mutex } from "async-mutex";
 import { WrongTypeError } from "../errors/RedisError";
+import { RDB } from "../persistence/RDB";
 
 interface StoredValue {
   value: string;
@@ -10,9 +11,16 @@ export class DataStore {
   private data: Map<string, StoredValue> = new Map();
   private lists: Map<string, string[]> = new Map();
   private mutex = new Mutex();
+  private rdb = new RDB();
 
   constructor() {
+    this.initialize();
     setInterval(() => this.cleanupExpiredKeys(), 300000);
+  }
+
+  private async initialize() {
+    await this.rdb.load(this);
+    setInterval(() => this.rdb.save(this), 60_000);
   }
 
   private cleanupExpiredKeys(): void {
@@ -22,6 +30,20 @@ export class DataStore {
         this.data.delete(key);
       }
     });
+  }
+
+  private checkExpiration(key: string): boolean {
+    const item = this.data.get(key);
+
+    if (item?.expiresAt && Date.now() > item.expiresAt) {
+      this.data.delete(key);
+      return true;
+    }
+    return false;
+  }
+
+  async shutdown() {
+    await this.rdb.save(this);
   }
 
   async set(key: string, value: any, ttl?: number): Promise<void> {
@@ -41,15 +63,8 @@ export class DataStore {
 
   async get(key: string): Promise<string | null> {
     return this.mutex.runExclusive(() => {
-      const item = this.data.get(key);
-      if (!item) return null;
-
-      if (item.expiresAt && Date.now() > item.expiresAt) {
-        this.data.delete(key);
-        return null;
-      }
-
-      return item.value;
+      if (this.checkExpiration(key)) return null;
+      return this.data.get(key)?.value ?? null;
     });
   }
 
