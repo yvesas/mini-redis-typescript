@@ -24,6 +24,7 @@ describe("StringCommandService", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+    jest.clearAllTimers();
   });
 
   describe("SET command", () => {
@@ -64,7 +65,7 @@ describe("StringCommandService", () => {
       });
 
       await service.execute(["get", "tempkey"], mockSocket);
-      expect(mockSocket.write).toHaveBeenCalledWith("$8\r\ntempvalue\r\n");
+      expect(mockSocket.write).toHaveBeenCalledWith("$9\r\ntempvalue\r\n");
 
       jest.advanceTimersByTime(101);
 
