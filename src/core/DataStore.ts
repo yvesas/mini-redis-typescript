@@ -31,6 +31,17 @@ export class DataStore {
     });
   }
 
+  async exists(key: string): Promise<boolean> {
+    return this.mutex.runExclusive(() => {
+      const item = this.data.get(key);
+      if (item?.expiresAt && Date.now() > item.expiresAt) {
+        this.data.delete(key);
+        return false;
+      }
+      return this.data.has(key);
+    });
+  }
+
   async delete(key: string): Promise<boolean> {
     return this.mutex.runExclusive(() => {
       const existed = this.data.has(key);
