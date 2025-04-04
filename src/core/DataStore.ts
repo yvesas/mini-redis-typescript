@@ -31,9 +31,24 @@ export class DataStore {
     });
   }
 
-  async delete(key: string): Promise<void> {
-    await this.mutex.runExclusive(() => {
+  async delete(key: string): Promise<boolean> {
+    return this.mutex.runExclusive(() => {
+      const existed = this.data.has(key);
       this.data.delete(key);
+      return existed;
+    });
+  }
+
+  async deleteMultiple(keys: string[]): Promise<number> {
+    return this.mutex.runExclusive(() => {
+      let count = 0;
+      for (const key of keys) {
+        if (this.data.has(key)) {
+          this.data.delete(key);
+          count++;
+        }
+      }
+      return count;
     });
   }
 
