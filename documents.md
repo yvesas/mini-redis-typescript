@@ -3,6 +3,7 @@
 1. **Singleton** :
 
 - `ResponseHandler.getInstance()`
+- O ConnectionManager é instanciado uma vez no entrypoint
 
 1. **Strategy** :
 
@@ -34,7 +35,8 @@ export interface ICommandService {
 
 1. **Observer** :
 
-- Gerenciador de expiração verificando keys periodicamente
+- ConnectionManager monitora eventos de conexão (data, end, error).
+- Outro uso é no DataStore: gerenciador de expiração verificando keys periodicamente.
 
 ```tsx
 // DataStore.ts
