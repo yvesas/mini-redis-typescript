@@ -19,8 +19,18 @@ export class DataStore {
   }
 
   private async initialize() {
-    await this.rdb.load(this);
-    setInterval(() => this.rdb.save(this), 60_000);
+    try {
+      const loaded = await this.rdb.load(this);
+      console.log(loaded ? "Data loaded from RDB" : "No RDB data found");
+    } catch (err) {
+      console.error("Failed to initialize data store:", err);
+    }
+
+    setInterval(() => {
+      this.rdb
+        .save(this)
+        .catch((err) => console.error("Auto-save failed:", err));
+    }, 60_000);
   }
 
   private cleanupExpiredKeys(): void {
