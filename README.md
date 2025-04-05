@@ -10,7 +10,7 @@ Before you begin, make sure you have installed:
 ---
 
 
-## **🚀 Running the Application**
+## **🚀  Running the Application**
 
 ### 1. Install the dependencies and then start
 
@@ -30,7 +30,7 @@ redis-cli -p 6379 --raw
 
 ---
 
-#### Architecture and design decisions
+### 💡 Architecture and design decisions 
 
 [Use of design patterns](https://github.com/yvesas/mini-redis-typescript/blob/main/documents.md)
 
