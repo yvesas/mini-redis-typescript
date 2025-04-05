@@ -3,7 +3,23 @@ import { RedisServer } from "./networking/server";
 const PORT = parseInt(process.env.PORT || "6379");
 const server = new RedisServer(PORT);
 
-process.on("SIGINT", () => {
-  server.close();
+async function main() {
+  try {
+    await server.start();
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  }
+}
+
+process.on("SIGINT", async () => {
+  await server.close();
   process.exit();
 });
+
+process.on("SIGTERM", async () => {
+  await server.close();
+  process.exit();
+});
+
+main();

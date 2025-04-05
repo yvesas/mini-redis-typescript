@@ -1,4 +1,3 @@
-// tests/unit/networking/RESPProcessor.test.ts
 import { RESPProcessor } from "../../../src/networking/resp/RESPProcessor";
 import { DataStore } from "../../../src/core/DataStore";
 import { Socket } from "net";

@@ -1,37 +1,22 @@
-import { Server, Socket, createServer } from "net";
-import { RESPProcessor } from "./resp/RESPProcessor";
 import { DataStore } from "../core/DataStore";
+import { ConnectionManager } from "./ConnectionManager";
 
 export class RedisServer {
-  private server: Server;
+  private connectionManager: ConnectionManager;
   private store: DataStore;
-  private respProcessor: RESPProcessor;
 
-  constructor(port: number = 6379) {
+  constructor(private port: number = 6379) {
     this.store = new DataStore();
-    this.respProcessor = new RESPProcessor(this.store);
-
-    this.server = createServer((socket) => {
-      this.handleConnection(socket);
-    });
-
-    this.server.listen(port, () => {
-      console.log(`Mini-Redis listening on port ${port}`);
-    });
+    this.connectionManager = new ConnectionManager(this.store, this.port);
   }
 
-  private handleConnection(socket: Socket) {
-    socket.on("data", (data) => {
-      const input = data.toString().trim();
-      this.respProcessor.process(input, socket);
-    });
-
-    socket.on("error", (err) => {
-      console.error("Socket error:", err);
-    });
+  async start(): Promise<void> {
+    await this.connectionManager.start();
+    console.log(`Server running on port ${this.port}`);
   }
 
-  close() {
-    this.server.close();
+  async close(): Promise<void> {
+    await this.store.shutdown();
+    await this.connectionManager.shutdown();
   }
 }
