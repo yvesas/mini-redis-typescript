@@ -150,6 +150,8 @@ export class RESPProcessor {
         return "list";
 
       // Key commands
+      case "save":
+      case "bgsave":
       case "del":
       case "exists":
       case "expire":

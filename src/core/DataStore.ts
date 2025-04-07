@@ -30,7 +30,7 @@ export class DataStore {
       this.rdb
         .save(this)
         .catch((err) => console.error("Auto-save failed:", err));
-    }, 60_000);
+    }, 120_000);
   }
 
   private cleanupExpiredKeys(): void {
@@ -169,5 +169,27 @@ export class DataStore {
 
       return list.slice(s, e + 1);
     });
+  }
+
+  public async saveToDisk(): Promise<string> {
+    try {
+      await this.rdb.save(this);
+      return "OK";
+    } catch (err) {
+      console.error("Save failed:", err);
+      throw new Error("ERR Failed to save database");
+    }
+  }
+
+  public async bgSaveToDisk(): Promise<string> {
+    setImmediate(async () => {
+      try {
+        await this.rdb.save(this);
+        console.log("Background save completed");
+      } catch (err) {
+        console.error("Background save failed:", err);
+      }
+    });
+    return "Background saving started";
   }
 }

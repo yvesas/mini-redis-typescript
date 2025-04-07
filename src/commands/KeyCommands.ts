@@ -5,6 +5,12 @@ export class KeyCommandService extends BaseCommandService {
   async execute(args: string[], socket: Socket): Promise<void> {
     try {
       switch (args[0].toLowerCase()) {
+        case "save":
+          await this.handleSave(socket);
+          break;
+        case "bgsave":
+          await this.handleBGSave(socket);
+          break;
         case "del":
           await this.handleDel(args.slice(1), socket);
           break;
@@ -56,6 +62,30 @@ export class KeyCommandService extends BaseCommandService {
             err instanceof Error ? err.message : String(err)
           }`
         )
+      );
+    }
+  }
+
+  private async handleSave(socket: Socket): Promise<void> {
+    try {
+      const result = await this.store.saveToDisk();
+      this.responseHandler.sendResponse(socket, result);
+    } catch (err) {
+      this.responseHandler.sendResponse(
+        socket,
+        new Error(err instanceof Error ? err.message : String(err))
+      );
+    }
+  }
+
+  private async handleBGSave(socket: Socket): Promise<void> {
+    try {
+      const result = await this.store.bgSaveToDisk();
+      this.responseHandler.sendResponse(socket, result);
+    } catch (err) {
+      this.responseHandler.sendResponse(
+        socket,
+        new Error(err instanceof Error ? err.message : String(err))
       );
     }
   }

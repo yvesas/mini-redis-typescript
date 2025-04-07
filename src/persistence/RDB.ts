@@ -20,7 +20,7 @@ export class RDB {
       await fs.writeFile(this.filePath, JSON.stringify(snapshot), "utf8");
     } catch (err) {
       console.error("RDB save error:", err);
-      throw new Error("ERR Failed to save database");
+      throw err;
     }
   }
 
